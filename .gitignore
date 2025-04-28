@@ -36,3 +36,14 @@ yarn-error.*
 *.tsbuildinfo
 
 app-example
+
+#prebuild
+android/
+ios/
+
+
+#cursor
+.cursor/
+
+#zed
+.zed
