@@ -1,4 +1,4 @@
-import { Food, SnakeSegment } from "../types";
+import { Food, SnakeSegment } from "@/types/snake";
 
 function validFoodPos(
   food: Food,
@@ -40,15 +40,10 @@ export function generateFood(
   radius: number,
 ): Food {
   let food: Food;
-  while (!food || !validFoodPos(food, snake, width, height)) {
+  do {
     const x = Math.floor(Math.random() * width - radius);
     const y = Math.floor(Math.random() * height - radius);
-    if (food) {
-      food.x = x;
-      food.y = y;
-    } else {
-      food = { x, y };
-    }
-  }
+    food = { x, y };
+  } while (!validFoodPos(food, snake, width, height));
   return food;
 }

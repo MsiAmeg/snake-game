@@ -1,4 +1,4 @@
-import { SnakeSegment } from "../types";
+import { SnakeSegment } from "@/types/snake";
 
 export function collision(
   oldSnake: SnakeSegment[],
