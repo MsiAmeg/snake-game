@@ -78,7 +78,7 @@ export default function App() {
           }
 
           if (canEatFood(newHead, food, FOOD_BOX - 10)) {
-            const newSnake = newHeads.concat(oldSnake);
+            const newSnake = [newHead, ...oldSnake];
             setFood(generateFood(newSnake, WIDTH, HEIGHT, FOOD_BOX));
             setScore((prevScore) => prevScore + 10);
             return newSnake;
