@@ -1,79 +1,57 @@
+// Simplified snake logic: grid-based head movement and tail update
 import { MoveEnum, SnakeSegment } from "@/types/snake";
 
-
-
-
-export function generateInitialSnakeSegments(
+/**
+ * Initialize snake at center with given length and step size
+ */
+export function initSnake(
   width: number,
   height: number,
-  move: MoveEnum,
-  foodBox: number,
+  length: number = 3,
+  step: number
 ): SnakeSegment[] {
-  const snakeSegments: SnakeSegment[] = [];
-  let x = Math.floor(Math.random() * width);
-  let y = Math.floor(Math.random() * height);
-  if (move === MoveEnum.Up) {
-    y = Math.min(height - foodBox, y + 100);
-  } else if (move === MoveEnum.Down) {
-    y = Math.max(foodBox, y - 100);
-  } else if (move === MoveEnum.Left) {
-    x = Math.min(width - foodBox, x + 100);
-  } else {
-    x = Math.max(foodBox, x - 100);
-  }
-  snakeSegments.push({ x: x, y, pos: snakeSegments.length + 1 });
-  return snakeSegments;
+  const centerX = Math.floor((width / 2) / step) * step;
+  const centerY = Math.floor((height / 2) / step) * step;
+  return Array.from({ length }, (_, i) => ({ x: centerX - i * step, y: centerY, pos: i + 1 }));
 }
 
-export function generateSnakeSegments(
-  oldSnake: SnakeSegment[],
-  snakeSegmentFrames: number[],
-  foodBox: number,
+/**
+ * Calculate next head position based on direction and step size
+ */
+export function getNextHead(
+  head: SnakeSegment,
   move: MoveEnum,
-) {
-  const head = oldSnake[0];
-  return snakeSegmentFrames.map((_, index, segments) => {
-    const copyHead = {
-      x: head.x,
-      y: head.y,
-      pos: oldSnake.length + 1 + index,
-    };
-    const newMove = foodBox * 0.125 * Math.abs(segments.length - index);
+  step: number
+): SnakeSegment {
+  const delta = { x: 0, y: 0 };
+  switch (move) {
+    case MoveEnum.Up:    delta.y = -step; break;
+    case MoveEnum.Down:  delta.y = step;  break;
+    case MoveEnum.Left:  delta.x = -step; break;
+    case MoveEnum.Right: delta.x = step;  break;
+  }
+  return { x: head.x + delta.x, y: head.y + delta.y, pos: head.pos + 1 };
+}
 
-    if (move === MoveEnum.Up) {
-      copyHead.y -= newMove;
-    } else if (move === MoveEnum.Down) {
-      copyHead.y += newMove;
-    } else if (move === MoveEnum.Left) {
-      copyHead.x -= newMove;
-    } else {
-      copyHead.x += newMove;
-    }
-    return copyHead;
-  });
+/**
+ * Move snake: grow if ate, otherwise shift head and remove tail
+ */
+export function moveSnake(
+  snake: SnakeSegment[],
+  newHead: SnakeSegment,
+  ate: boolean
+): SnakeSegment[] {
+  return ate ? [newHead, ...snake] : [newHead, ...snake.slice(0, -1)];
+}
+
+/**
+ * Random initial direction
+ */
+const _moves = Object.values(MoveEnum);
+export function generateMove(): MoveEnum {
+  return _moves[Math.floor(Math.random() * _moves.length)];
 }
 
 export function getSnakeSegmentKey(snakeSegment: SnakeSegment): string {
   return `x${snakeSegment.x}-y${snakeSegment.y}-p${snakeSegment.pos}`;
-}
-
-export function generateNextSnakeSegments(
-  oldSnake: SnakeSegment[],
-  newHead: SnakeSegment,
-): SnakeSegment[] {
-  const segments = new Array(oldSnake.length);
-  for (let i = 0; i < segments.length; i++) {
-    if (i === 0) {
-      segments[i] = newHead;
-    } else {
-      segments[i] = oldSnake[i - 1];
-    }
-  }
-  return segments;
-}
-
-const _moves = Object.values(MoveEnum);
-export function generateMove(): MoveEnum {
-  const index = Math.floor(Math.random() * _moves.length);
-  return _moves[index];
 }

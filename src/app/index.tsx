@@ -19,31 +19,25 @@ import {
 } from "react-native-gesture-handler";
 import { Food, MoveEnum, SnakeSegment } from "@/types/snake";
 import FoodSVG from "@/utils/FoodSVG";
-import { generateInitialSnakeSegments, generateMove, generateNextSnakeSegments, generateSnakeSegments, getSnakeSegmentKey } from "@/utils/snake";
+import { initSnake, getNextHead, moveSnake, generateMove, getSnakeSegmentKey } from "@/utils/snake";
 import { canEatFood, generateFood } from "@/utils/food";
 import { collision } from "@/utils/collision";
-import { runOnJS, useSharedValue } from "react-native-reanimated";
+import { runOnJS } from "react-native-reanimated";
 
 const { width, height } = Dimensions.get("window");
 const WIDTH = width;
 const HEIGHT = height - 100;
-const FRAME_INTERVAL = 1000 / 60;
+const FRAME_INTERVAL = 1000 / 12;
 const TOLERANCE = 0.1;
 const FOOD_BOX = 25;
+const INITIAL_SNAKE = initSnake(WIDTH, HEIGHT, 3, FOOD_BOX);
+const INITIAL_FOOD = generateFood(INITIAL_SNAKE, WIDTH, HEIGHT, FOOD_BOX);
 const INITIAL_MOVE = generateMove();
-const INTIAL_SNAKE = generateInitialSnakeSegments(
-  WIDTH,
-  HEIGHT,
-  INITIAL_MOVE,
-  FOOD_BOX,
-);
-const INITIAL_FOOD = generateFood(INTIAL_SNAKE, WIDTH, HEIGHT, FOOD_BOX);
-const SNAKE_SEGMENT_FRAMES = new Array(3).fill(0) as number[];
 let lastRenderTime = performance.now();
 
 export default function App() {
   const canvasRef = useCanvasRef();
-  const [snakePos, setSnakePos] = useState<Array<SnakeSegment>>(INTIAL_SNAKE);
+  const [snakePos, setSnakePos] = useState<Array<SnakeSegment>>(INITIAL_SNAKE);
   const [food, setFood] = useState<Food>(INITIAL_FOOD);
   const [direction, setDirection] = useState<MoveEnum>(INITIAL_MOVE);
   const [gameOver, setGameOver] = useState<boolean>(false);
@@ -60,31 +54,20 @@ export default function App() {
       if (elapsed >= FRAME_INTERVAL - TOLERANCE) {
         lastRenderTime = currentRenderTime - (elapsed % FRAME_INTERVAL);
 
-        setSnakePos((oldSnake) => {
-          const newHeads = generateSnakeSegments(
-            oldSnake,
-            SNAKE_SEGMENT_FRAMES,
-            FOOD_BOX,
-            direction,
-          );
-
-          const newHead = newHeads.at(-1);
-          if (!newHead) return oldSnake 
-
+        setSnakePos(oldSnake => {
+          const newHead = getNextHead(oldSnake[0], direction, FOOD_BOX);
           if (collision(oldSnake, newHead, WIDTH, HEIGHT, FOOD_BOX)) {
             gameOverRef.current = true;
             setGameOver(true);
             return oldSnake;
           }
-
-          if (canEatFood(newHead, food, FOOD_BOX - 10)) {
-            const newSnake = [newHead, ...oldSnake];
+          const ate = canEatFood(newHead, food);
+          const newSnake = moveSnake(oldSnake, newHead, ate);
+          if (ate) {
             setFood(generateFood(newSnake, WIDTH, HEIGHT, FOOD_BOX));
-            setScore((prevScore) => prevScore + 10);
-            return newSnake;
+            setScore(prev => prev + 10);
           }
-
-          return generateNextSnakeSegments(oldSnake, newHead);
+          return newSnake;
         });
       }
 
@@ -132,12 +115,11 @@ export default function App() {
         {
           text: "Play Again",
           onPress: () => {
-            const nextMove = generateMove();
-            setSnakePos(
-              generateInitialSnakeSegments(WIDTH, HEIGHT, nextMove, FOOD_BOX),
-            );
-            setFood(generateFood(INTIAL_SNAKE, WIDTH, HEIGHT, FOOD_BOX));
-            setDirection(nextMove);
+            const newSnake = initSnake(WIDTH, HEIGHT, 3, FOOD_BOX);
+            const newDir = generateMove();
+            setSnakePos(newSnake);
+            setFood(generateFood(newSnake, WIDTH, HEIGHT, FOOD_BOX));
+            setDirection(newDir);
             setScore(0);
             gameOverRef.current = false;
             setGameOver(false);
@@ -153,37 +135,16 @@ export default function App() {
       <GestureHandlerRootView>
         <GestureDetector gesture={pan}>
           <Canvas ref={canvasRef} style={styles.canvas}>
-            {snakePos.map((seg, index) => {
-              if (index < 1) {
-                return (
-                  <Oval
-                    key={getSnakeSegmentKey(seg)}
-                    x={seg.x}
-                    y={seg.y}
-                    width={
-                      direction === MoveEnum.Left || direction === MoveEnum.Right
-                        ? 25
-                        : 20
-                    }
-                    height={
-                      direction === MoveEnum.Up || direction === MoveEnum.Down ? 25 : 20
-                    }
-                    color={styles.snakeBody.color}
-                  />
-                );
-              }
-
-              return (
-                <Oval
-                  key={getSnakeSegmentKey(seg)}
-                  x={seg.x + (isVerticalMove(direction) ? 3.5 : 0)}
-                  y={seg.y + (isHorizontalMove(direction) ? 3.5 : 0)}
-                  width={isHorizontalMove(direction) ? 18 : 13}
-                  height={isVerticalMove(direction) ? 18 : 13}
-                  color={styles.snakeBody.color}
-                />
-              );
-            })}
+            {snakePos.map(seg => (
+              <Oval
+                key={getSnakeSegmentKey(seg)}
+                x={seg.x}
+                y={seg.y}
+                width={FOOD_BOX}
+                height={FOOD_BOX}
+                color={styles.snakeBody.color}
+              />
+            ))}
             <ImageSVG
               svg={FoodSVG}
               width={FOOD_BOX}
@@ -196,14 +157,6 @@ export default function App() {
       </GestureHandlerRootView>
     </SafeAreaView>
   );
-}
-
-function isVerticalMove(move: MoveEnum) {
-  return move === MoveEnum.Up || move === MoveEnum.Down;
-}
-
-function isHorizontalMove(move: MoveEnum) {
-  return move === MoveEnum.Left || move === MoveEnum.Right;
 }
 
 const styles = StyleSheet.create({
